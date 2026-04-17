@@ -1,0 +1,34 @@
+# --- JetBrains / PyCharm ---
+.idea/
+
+# --- Python ---
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+
+# --- Simulation / Build Artifacts ---
+# Cocotb generates these
+sim_build/
+results.xml
+*.vcd
+*.log
+
+# Quartus / FPGA generated files (if you add them later)
+*.qpf
+*.qsf
+*.qdf
+/db/
+/incremental_db/
+/output_files/
+/simulation/
+*.rpt
+*.smsg
+*.summary
+*.sof
+*.pof
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db
