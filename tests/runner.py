@@ -52,7 +52,16 @@ def test_instruction_memory_runner():
     test_module= "memory.test_instruction_memory",
   )
 
+def test_pc_runner():
+  run_module_test(
+    hdl_toplevel="pc",
+    source_files=[RTL_DIR / "core" / "pc.sv"],
+    test_module= "core.test_pc",
+    gui=True
+  )
+
 
 if __name__ == "__main__":
-  test_data_memory_runner()
+  # test_data_memory_runner()
   # test_instruction_memory_runner()
+  test_pc_runner()
