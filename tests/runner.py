@@ -38,30 +38,41 @@ def run_module_test(hdl_toplevel, source_files, test_module, gui=False):
 
 
 
-def test_data_memory_runner():
+def test_data_memory_runner(gui=False):
   run_module_test(
     hdl_toplevel="data_memory",
     source_files=[RTL_DIR / "memory" / "data_memory.sv"],
     test_module= "memory.test_data_memory",
+    gui=gui
   )
 
-def test_instruction_memory_runner():
+def test_instruction_memory_runner(gui=False):
   run_module_test(
     hdl_toplevel="instruction_memory",
     source_files=[RTL_DIR / "memory" / "instruction_memory.sv"],
     test_module= "memory.test_instruction_memory",
+    gui=gui
   )
 
-def test_pc_runner():
+def test_pc_runner(gui=False):
   run_module_test(
     hdl_toplevel="pc",
     source_files=[RTL_DIR / "core" / "pc.sv"],
     test_module= "core.test_pc",
-    gui=True
+    gui=gui
+  )
+
+def test_register_file_runner(gui=False):
+  run_module_test(
+    hdl_toplevel="register_file",
+    source_files=[RTL_DIR / "core" / "register_file.sv"],
+    test_module= "core.test_register_file",
+    gui=gui
   )
 
 
 if __name__ == "__main__":
   # test_data_memory_runner()
   # test_instruction_memory_runner()
-  test_pc_runner()
+  # test_pc_runner()
+  test_register_file_runner()
