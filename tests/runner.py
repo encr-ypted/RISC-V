@@ -86,10 +86,19 @@ def test_branch_unit_runner(gui=False):
     gui=gui
   )
 
+def test_control_unit_runner(gui=False):
+  run_module_test(
+    hdl_toplevel="control_unit",
+    source_files=[RTL_DIR / "core" / "control_unit.sv"],
+    test_module= "core.test_control_unit",
+    gui=gui
+  )
+
 if __name__ == "__main__":
   # test_data_memory_runner()
   # test_instruction_memory_runner()
   # test_pc_runner()
   # test_register_file_runner()
   # test_alu_runner()
-  test_branch_unit_runner()
+  # test_branch_unit_runner()
+  test_control_unit_runner()
