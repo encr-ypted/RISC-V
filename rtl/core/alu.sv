@@ -3,7 +3,9 @@ module alu(
     input logic [31:0] b_i,
     input logic [3:0] opsel_i,
     output logic [31:0] result_o,
-    output logic zero_o
+    output logic zero_o,
+    output logic lt_o,
+    output logic lt_unsigned_o
 );
 
 always_comb begin
@@ -23,5 +25,7 @@ always_comb begin
 end
 
 assign zero_o = (result_o == 32'b0);
+assign lt_0 = (signed'(a_i) < signed'(b_i));
+assign lt_unsigned_0 = a_i) < b_i;
 
 endmodule
