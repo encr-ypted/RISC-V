@@ -16,18 +16,19 @@ results.xml
 *.log
 
 # Quartus / FPGA generated files (if you add them later)
-*.qpf
-*.qsf
 *.qdf
-/db/
-/incremental_db/
-/output_files/
-/simulation/
+*.cdf
+/quartus/db/
+/quartus/incremental_db/
+/quartus/output_files/
+/quartus/simulation/
 *.rpt
 *.smsg
 *.summary
 *.sof
 *.pof
+*.bak
+
 
 # --- OS Specific ---
 .DS_Store
