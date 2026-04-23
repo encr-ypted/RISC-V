@@ -26,6 +26,6 @@ end
 
 assign zero_o = (result_o == 32'b0);
 assign lt_0 = (signed'(a_i) < signed'(b_i));
-assign lt_unsigned_0 = a_i) < b_i;
+assign lt_unsigned_0 = a_i < b_i;
 
 endmodule
