@@ -15,7 +15,7 @@ assign word_addr = addr_i[ADDR_W+1:2];
 assign data_o = memory[word_addr];
 
 initial begin
-    $readmemh("program.hex", memory);
+    $readmemh("../../program.hex", memory);
 end
 
 endmodule

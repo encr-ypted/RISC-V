@@ -20,7 +20,7 @@ logic [31:0] immediate;
 logic [3:0]  alu_op_sel;
 logic [1:0]  result_src;
 logic [1:0]  pc_sel;
-logic        alu_src_b;
+logic        alu_b_src;
 logic        mem_write;
 logic        reg_write;
 logic        is_jalr;
@@ -50,7 +50,7 @@ instruction_memory imem(
 control_unit cu(
 .instruction_i(instruction),
 .alu_op_sel_o(alu_op_sel),
-.alu_src_b_o(alu_src_b),
+.alu_b_src_o(alu_b_src),
 
 .mem_write_o(mem_write),
 .reg_write_o(reg_write),
@@ -75,7 +75,7 @@ register_file reg_file(
 .rs2_o(rs2)
 );
 
-assign alu_b = alu_src_b ? immediate : rs2;
+assign alu_b = alu_b_src ? immediate : rs2;
 
 alu alu(
 .a_i(rs1),
