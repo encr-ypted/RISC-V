@@ -18,6 +18,7 @@ results.xml
 # Quartus / FPGA generated files (if you add them later)
 *.qdf
 *.cdf
+*.qws
 /quartus/db/
 /quartus/incremental_db/
 /quartus/output_files/
