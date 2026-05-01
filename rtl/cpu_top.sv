@@ -1,3 +1,5 @@
+import cpu_pkg::*;
+
 module cpu_top(
     input logic clk,
     input logic rst
@@ -6,7 +8,6 @@ module cpu_top(
 logic [31:0] next_pc_value;
 logic [31:0] target_address;
 logic flush_pipeline;
-
 
 
 // FETCH STAGE WIRES
@@ -80,20 +81,26 @@ instruction_memory imem(
 .data_o(if_instruction)
 );
 
+if_id_packet_t if_id_in, if_id_out;
 
+assign if_id_in.pc = if_pc;
+assign if_id_in.instruction = if_instruction;
 
 
 //Pipeline register (Fetch to Decode Boundary)
 pipeline_reg #(
-.DATA_WIDTH(64)
+.DATA_WIDTH($bits(if_id_packet_t))
 ) if_id_reg (
 .clk(clk),
 .rst(rst),
 .en(1'b1),
 .flush(flush_pipeline),
-.d({if_pc, if_instruction}),
-.q({id_pc, id_instruction})
+.d(if_id_in),
+.q(if_id_out)
 );
+
+assign id_pc = if_id_out.pc;
+assign id_instruction = if_id_out.instruction;
 
 control_unit cu(
 .instruction_i(id_instruction),
@@ -113,19 +120,46 @@ control_unit cu(
 assign id_rd_addr = id_instruction[11:7];
 assign id_funct3 = id_instruction[14:12];
 
+id_ex_packet_t id_ex_in, id_ex_out;
+assign id_ex_in.pc = id_pc;
+assign id_ex_in.immediate = id_immediate;
+assign id_ex_in.rs1 = id_rs1;
+assign id_ex_in.rs2 = id_rs2;
+assign id_ex_in.rd_addr = id_rd_addr;
+assign id_ex_in.funct3 = id_funct3;
+assign id_ex_in.alu_op_sel = id_alu_op_sel;
+assign id_ex_in.result_src = id_result_src;
+assign id_ex_in.pc_sel = id_pc_sel;
+assign id_ex_in.alu_b_src = id_alu_b_src;
+assign id_ex_in.mem_write = id_mem_write;
+assign id_ex_in.reg_write = id_reg_write;
+assign id_ex_in.is_jalr = id_is_jalr;
 
 //Pipeline register (Decode to Execute Boundary)
 pipeline_reg #(
-.DATA_WIDTH(148)
+.DATA_WIDTH($bits(id_ex_packet_t))
 ) id_ex_reg (
 .clk(clk),
 .rst(rst),
 .en(1'b1),
 .flush(flush_pipeline),
-.d({id_pc, id_funct3, id_immediate, id_alu_op_sel, id_result_src, id_pc_sel, id_alu_b_src, id_mem_write, id_reg_write, id_is_jalr, id_rs1, id_rs2, id_rd_addr}),
-.q({ex_pc, ex_funct3, ex_immediate, ex_alu_op_sel, ex_result_src, ex_pc_sel, ex_alu_b_src, ex_mem_write, ex_reg_write, ex_is_jalr, ex_rs1, ex_rs2, ex_rd_addr})
+.d(id_ex_in),
+.q(id_ex_out)
 );
 
+assign ex_pc         = id_ex_out.pc;
+assign ex_immediate  = id_ex_out.immediate;
+assign ex_rs1        = id_ex_out.rs1;
+assign ex_rs2        = id_ex_out.rs2;
+assign ex_rd_addr    = id_ex_out.rd_addr;
+assign ex_funct3     = id_ex_out.funct3;
+assign ex_alu_op_sel = id_ex_out.alu_op_sel;
+assign ex_result_src = id_ex_out.result_src;
+assign ex_pc_sel     = id_ex_out.pc_sel;
+assign ex_alu_b_src  = id_ex_out.alu_b_src;
+assign ex_mem_write  = id_ex_out.mem_write;
+assign ex_reg_write  = id_ex_out.reg_write;
+assign ex_is_jalr    = id_ex_out.is_jalr;
 
 assign ex_alu_b = ex_alu_b_src ? ex_immediate : ex_rs2;
 
@@ -150,18 +184,35 @@ branch_unit bu(
 .take_branch_o(ex_branch_taken)
 );
 
+ex_mem_packet_t ex_mem_in, ex_mem_out;
+
+assign ex_mem_in.incremented_pc = ex_incremented_pc;
+assign ex_mem_in.alu_result = ex_alu_result;
+assign ex_mem_in.rs2 = ex_rs2;
+assign ex_mem_in.rd_addr = ex_rd_addr;
+assign ex_mem_in.mem_write = ex_mem_write;
+assign ex_mem_in.reg_write = ex_reg_write;
+assign ex_mem_in.result_src = ex_result_src;
 
 //Pipeline register (Execute to Mem Boundary)
 pipeline_reg #(
-.DATA_WIDTH(105)
+.DATA_WIDTH($bits(ex_mem_packet_t))
 ) ex_mem_reg (
 .clk(clk),
 .rst(rst),
 .en(1'b1),
 .flush(1'b0),
-.d({ex_incremented_pc, ex_result_src, ex_mem_write, ex_reg_write, ex_rs2, ex_alu_result, ex_rd_addr}),
-.q({mem_incremented_pc, mem_result_src, mem_mem_write, mem_reg_write, mem_rs2, mem_alu_result, mem_rd_addr})
+.d(ex_mem_in),
+.q(ex_mem_out)
 );
+
+assign mem_incremented_pc = ex_mem_out.incremented_pc;
+assign mem_result_src     = ex_mem_out.result_src;
+assign mem_mem_write      = ex_mem_out.mem_write;
+assign mem_reg_write      = ex_mem_out.reg_write;
+assign mem_rs2            = ex_mem_out.rs2;
+assign mem_alu_result     = ex_mem_out.alu_result;
+assign mem_rd_addr        = ex_mem_out.rd_addr;
 
 
 data_memory dmem(
@@ -173,18 +224,33 @@ data_memory dmem(
 .data_o(mem_data)
 );
 
+mem_wb_packet_t mem_wb_in, mem_wb_out;
+
+assign mem_wb_in.incremented_pc = mem_incremented_pc;
+assign mem_wb_in.alu_result = mem_alu_result;
+assign mem_wb_in.mem_data = mem_data;
+assign mem_wb_in.rd_addr = mem_rd_addr;
+assign mem_wb_in.result_src = mem_result_src;
+assign mem_wb_in.reg_write = mem_reg_write;
 
 //Pipeline register (Mem to Writeback Boundary)
 pipeline_reg #(
-.DATA_WIDTH(104)
+.DATA_WIDTH($bits(mem_wb_packet_t))
 ) mem_wb_reg (
 .clk(clk),
 .rst(rst),
 .en(1'b1),
 .flush(1'b0),
-.d({mem_incremented_pc, mem_result_src, mem_reg_write, mem_alu_result, mem_data, mem_rd_addr}),
-.q({wb_incremented_pc, wb_result_src, wb_reg_write, wb_alu_result, wb_data, wb_rd_addr})
+.d(mem_wb_in),
+.q(mem_wb_out)
 );
+
+assign wb_incremented_pc = mem_wb_out.incremented_pc;
+assign wb_result_src     = mem_wb_out.result_src;
+assign wb_reg_write      = mem_wb_out.reg_write;
+assign wb_alu_result     = mem_wb_out.alu_result;
+assign wb_data           = mem_wb_out.mem_data;
+assign wb_rd_addr        = mem_wb_out.rd_addr;
 
 logic [31:0] wb_register_data;
 
@@ -219,7 +285,7 @@ always_comb begin
         2'b00: next_pc_value = ex_incremented_pc; // Normal
         2'b01: next_pc_value = ex_branch_taken ? target_address : ex_incremented_pc; // Branch
         2'b10: next_pc_value = target_address; // Jump
-        default: next_pc_value = ex_incremented_pc_value;
+        default: next_pc_value = ex_incremented_pc;
     endcase
 end
 
