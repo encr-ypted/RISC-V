@@ -25,7 +25,8 @@ logic       id_alu_b_src;
 logic       id_mem_write;
 logic       id_reg_write;
 logic       id_is_jalr;
-logic [31:0] id_rs1, id_rs2;
+logic [31:0] id_rs1_data, id_rs2_data;
+logic [4:0] id_rs1_addr, id_rs2_addr;
 
 logic [4:0] id_rd_addr;
 logic [2:0] id_funct3;
@@ -35,6 +36,7 @@ logic [31:0] ex_pc;
 logic [3:0] ex_alu_op_sel;
 logic [1:0] ex_result_src;
 logic [31:0] ex_alu_result;
+logic [31:0] ex_alu_a;
 logic [31:0] ex_alu_b;
 logic [1:0] ex_pc_sel;
 logic       ex_alu_b_src;
@@ -49,7 +51,11 @@ logic ex_alu_zero;
 logic ex_branch_taken;
 logic [31:0] ex_incremented_pc;
 logic [4:0] ex_rd_addr;
+logic [4:0] ex_rs1_addr;
+logic [4:0] ex_rs2_addr;
 logic [2:0] ex_funct3;
+logic [31:0] ex_forwarded_rs1;
+logic [31:0] ex_forwarded_rs2;
 
 
 // MEMORY ACCESS STAGE WIRES
@@ -57,14 +63,14 @@ logic [1:0] mem_result_src;
 logic       mem_mem_write;
 logic       mem_reg_write;
 logic [31:0] mem_rs2;
-logic [31:0] mem_data;
+logic [31:0] mem_mem_data;
 logic [31:0] mem_incremented_pc;
 logic [4:0] mem_rd_addr;
 
 // WRITEBACK STAGE WIRES
 logic [31:0] wb_incremented_pc;
 logic       wb_reg_write;
-logic [31:0] wb_data;
+logic [31:0] wb_mem_data;
 logic [4:0] wb_rd_addr;
 logic[31:0] wb_alu_result;
 
@@ -117,14 +123,18 @@ control_unit cu(
 .immediate_o(id_immediate)
 );
 
+
+
 assign id_rd_addr = id_instruction[11:7];
 assign id_funct3 = id_instruction[14:12];
+assign id_rs1_addr = id_instruction[19:15];
+assign id_rs2_addr = id_instruction[24:20];
 
 id_ex_packet_t id_ex_in, id_ex_out;
 assign id_ex_in.pc = id_pc;
 assign id_ex_in.immediate = id_immediate;
-assign id_ex_in.rs1 = id_rs1;
-assign id_ex_in.rs2 = id_rs2;
+assign id_ex_in.rs1_data = id_rs1_data;
+assign id_ex_in.rs2_data = id_rs2_data;
 assign id_ex_in.rd_addr = id_rd_addr;
 assign id_ex_in.funct3 = id_funct3;
 assign id_ex_in.alu_op_sel = id_alu_op_sel;
@@ -134,6 +144,8 @@ assign id_ex_in.alu_b_src = id_alu_b_src;
 assign id_ex_in.mem_write = id_mem_write;
 assign id_ex_in.reg_write = id_reg_write;
 assign id_ex_in.is_jalr = id_is_jalr;
+assign id_ex_in.rs1_addr = id_rs1_addr;
+assign id_ex_in.rs2_addr = id_rs2_addr;
 
 //Pipeline register (Decode to Execute Boundary)
 pipeline_reg #(
@@ -160,11 +172,31 @@ assign ex_alu_b_src  = id_ex_out.alu_b_src;
 assign ex_mem_write  = id_ex_out.mem_write;
 assign ex_reg_write  = id_ex_out.reg_write;
 assign ex_is_jalr    = id_ex_out.is_jalr;
+assign ex_rs1_addr = id_ex_out.rs1_addr;
+assign ex_rs2_addr = id_ex_out.rs2_addr;
 
-assign ex_alu_b = ex_alu_b_src ? ex_immediate : ex_rs2;
+
+always_comb begin
+    case (forward_a)
+        2'b00: ex_forwarded_rs1 = ex_rs1;
+        2'b01: ex_forwarded_rs1 = mem_ex_alu_result;
+        2'b10: ex_forwarded_rs1 = wb_reg_data;
+        default: ex_forwarded_rs1 = ex_rs1;
+    endcase
+
+    case (forward_b)
+        2'b00: ex_forward_rs2 = ex_rs2;
+        2'b01: ex_forward_rs2 = mem_ex_alu_result;
+        2'b10: ex_forward_rs2 = wb_reg_data;
+        default: ex_forward_rs2 = ex_rs2;
+    endcase
+end
+
+assign ex_alu_a = ex_forwarded_rs1;
+assign ex_alu_b = ex_alu_b_src ? ex_immediate : ex_forward_rs2;
 
 alu alu(
-.a_i(ex_rs1),
+.a_i(ex_alu_a),
 .b_i(ex_alu_b),
 .opsel_i(ex_alu_op_sel),
 .result_o(ex_alu_result),
@@ -221,14 +253,14 @@ data_memory dmem(
 .be_i(4'b1111),
 .addr_i(mem_alu_result),
 .data_i(mem_rs2),
-.data_o(mem_data)
+.data_o(mem_mem_data)
 );
 
 mem_wb_packet_t mem_wb_in, mem_wb_out;
 
 assign mem_wb_in.incremented_pc = mem_incremented_pc;
 assign mem_wb_in.alu_result = mem_alu_result;
-assign mem_wb_in.mem_data = mem_data;
+assign mem_wb_in.mem_data = mem_mem_data;
 assign mem_wb_in.rd_addr = mem_rd_addr;
 assign mem_wb_in.result_src = mem_result_src;
 assign mem_wb_in.reg_write = mem_reg_write;
@@ -249,10 +281,10 @@ assign wb_incremented_pc = mem_wb_out.incremented_pc;
 assign wb_result_src     = mem_wb_out.result_src;
 assign wb_reg_write      = mem_wb_out.reg_write;
 assign wb_alu_result     = mem_wb_out.alu_result;
-assign wb_data           = mem_wb_out.mem_data;
+assign wb_mem_data           = mem_wb_out.mem_data;
 assign wb_rd_addr        = mem_wb_out.rd_addr;
 
-logic [31:0] wb_register_data;
+logic [31:0] wb_reg_data;
 
 
 register_file reg_file(
@@ -262,18 +294,32 @@ register_file reg_file(
 .rs1_addr_i(id_instruction[19:15]),
 .rs2_addr_i(id_instruction[24:20]),
 .write_addr_i(wb_rd_addr),
-.write_data_i(wb_register_data),
-.rs1_o(id_rs1),
-.rs2_o(id_rs2)
+.write_data_i(wb_reg_data),
+.rs1_o(id_rs1_data),
+.rs2_o(id_rs2_data)
+);
+
+logic [1:0] ex_forward_rs1_ctrl;
+logic [1:0] ex_forward_rs2_ctrl;
+
+forwarding_unit fu(
+.wb_rd_addr(wb_rd_addr),
+.wb_reg_write(wb_reg_write),
+.mem_rd_addr(mem_rd_addr),
+.mem_reg_write(mem_reg_write),
+.ex_rs1_addr(ex_rs1_addr),
+.ex_rs2_addr(ex_rs2_addr),
+.forward_rs1(ex_forward_rs1_ctrl),
+.forward_rs2(ex_forward_rs2_ctrl)
 );
 
 
 always_comb begin
     case (wb_result_src)
-        2'b00: wb_register_data = wb_alu_result;
-        2'b01: wb_register_data = wb_data;
-        2'b10: wb_register_data = wb_incremented_pc;
-        default: wb_register_data = 32'b0;
+        2'b00: wb_reg_data = wb_alu_result;
+        2'b01: wb_reg_data = wb_mem_data;
+        2'b10: wb_reg_data = wb_incremented_pc;
+        default: wb_reg_data = 32'b0;
     endcase
 end
 

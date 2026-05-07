@@ -8,8 +8,10 @@ typedef struct packed {
 typedef struct packed {
     logic[31:0] pc;
     logic [31:0] immediate;
-    logic [31:0] rs1;
-    logic [31:0] rs2;
+    logic [31:0] rs1_data;
+    logic [31:0] rs2_data;
+    logic [4:0] rs1_addr;
+    logic [4:0] rs2_addr;
     logic [4:0]  rd_addr;
     logic [2:0]  funct3;
 
@@ -25,7 +27,7 @@ typedef struct packed {
 typedef struct packed {
     logic [31:0] incremented_pc;
     logic [31:0] alu_result;
-    logic [31:0] rs2;
+    logic [31:0] rs2_data;
     logic [4:0]  rd_addr;
 
     logic [1:0]  result_src;
