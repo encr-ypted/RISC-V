@@ -16,6 +16,7 @@ logic hazard_detected;
 // FETCH STAGE WIRES
 logic [31:0] if_instruction;
 logic [31:0] if_pc;
+logic [31:0] if_incremented_pc;
 
 // DECODE STAGE WIRES
 logic [31:0] id_pc;
@@ -246,7 +247,7 @@ ex_mem_packet_t ex_mem_in, ex_mem_out;
 
 assign ex_mem_in.incremented_pc = ex_incremented_pc;
 assign ex_mem_in.alu_result = ex_alu_result;
-assign ex_mem_in.rs2_data = ex_rs2_data;
+assign ex_mem_in.rs2_data = ex_forwarded_rs2;
 assign ex_mem_in.rd_addr = ex_rd_addr;
 assign ex_mem_in.mem_write = ex_mem_write;
 assign ex_mem_in.reg_write = ex_reg_write;
@@ -348,15 +349,17 @@ end
 
 assign target_address = (ex_is_jalr) ? {ex_alu_result[31:1], 1'b0} : (ex_pc + ex_immediate);
 
-always_comb begin
-    case (ex_pc_sel)
-        2'b00: next_pc_value = ex_incremented_pc; // Normal
-        2'b01: next_pc_value = ex_branch_taken ? target_address : ex_incremented_pc; // Branch
-        2'b10: next_pc_value = target_address; // Jump
-        default: next_pc_value = ex_incremented_pc;
-    endcase
-end
 
+//If branching, flush the pipeline and load target address into pc
 assign branch_flush = (ex_pc_sel == 2'b10) || ((ex_pc_sel == 2'b01) && ex_branch_taken);
+assign if_incremented_pc = if_pc + 32'd4;
+
+always_comb begin
+    if(branch_flush) begin
+        next_pc_value = target_address;
+    end else begin
+        next_pc_value = if_incremented_pc;
+    end
+end
 
 endmodule
