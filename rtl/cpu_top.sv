@@ -7,7 +7,10 @@ module cpu_top(
 
 logic [31:0] next_pc_value;
 logic [31:0] target_address;
-logic flush_pipeline;
+
+//Hazard signals
+logic branch_flush;
+logic hazard_detected;
 
 
 // FETCH STAGE WIRES
@@ -21,6 +24,7 @@ logic [31:0] id_immediate;
 logic [3:0] id_alu_op_sel;
 logic [1:0] id_result_src;
 logic [1:0] id_pc_sel;
+logic [1:0] id_alu_a_src;
 logic       id_alu_b_src;
 logic       id_mem_write;
 logic       id_reg_write;
@@ -39,6 +43,7 @@ logic [31:0] ex_alu_result;
 logic [31:0] ex_alu_a;
 logic [31:0] ex_alu_b;
 logic [1:0] ex_pc_sel;
+logic [1:0] ex_alu_a_src;
 logic       ex_alu_b_src;
 logic       ex_mem_write;
 logic       ex_reg_write;
@@ -74,9 +79,13 @@ logic [31:0] wb_mem_data;
 logic [4:0] wb_rd_addr;
 logic[31:0] wb_alu_result;
 
+
+assign hazard_detected = (ex_result_src == 2'b01) && (ex_rd_addr != 5'd0) && ((id_rs1_addr == ex_rd_addr) || (id_rs2_addr == ex_rd_addr));
+
 pc pc(
 .clk(clk),
 .rst(rst),
+.en(~hazard_detected),
 .pc_o(if_pc),
 .next_pc_i(next_pc_value) //come back at the end
 );
@@ -99,8 +108,8 @@ pipeline_reg #(
 ) if_id_reg (
 .clk(clk),
 .rst(rst),
-.en(1'b1),
-.flush(flush_pipeline),
+.en(~hazard_detected),
+.flush(branch_flush),
 .d(if_id_in),
 .q(if_id_out)
 );
@@ -111,6 +120,7 @@ assign id_instruction = if_id_out.instruction;
 control_unit cu(
 .instruction_i(id_instruction),
 .alu_op_sel_o(id_alu_op_sel),
+.alu_a_src_o(id_alu_a_src),
 .alu_b_src_o(id_alu_b_src),
 
 .mem_write_o(id_mem_write),
@@ -140,6 +150,7 @@ assign id_ex_in.funct3 = id_funct3;
 assign id_ex_in.alu_op_sel = id_alu_op_sel;
 assign id_ex_in.result_src = id_result_src;
 assign id_ex_in.pc_sel = id_pc_sel;
+assign id_ex_in.alu_a_src = id_alu_a_src;
 assign id_ex_in.alu_b_src = id_alu_b_src;
 assign id_ex_in.mem_write = id_mem_write;
 assign id_ex_in.reg_write = id_reg_write;
@@ -154,7 +165,7 @@ pipeline_reg #(
 .clk(clk),
 .rst(rst),
 .en(1'b1),
-.flush(flush_pipeline),
+.flush(branch_flush || hazard_detected),
 .d(id_ex_in),
 .q(id_ex_out)
 );
@@ -168,6 +179,7 @@ assign ex_funct3     = id_ex_out.funct3;
 assign ex_alu_op_sel = id_ex_out.alu_op_sel;
 assign ex_result_src = id_ex_out.result_src;
 assign ex_pc_sel     = id_ex_out.pc_sel;
+assign ex_alu_a_src  = id_ex_out.alu_a_src;
 assign ex_alu_b_src  = id_ex_out.alu_b_src;
 assign ex_mem_write  = id_ex_out.mem_write;
 assign ex_reg_write  = id_ex_out.reg_write;
@@ -177,23 +189,32 @@ assign ex_rs2_addr = id_ex_out.rs2_addr;
 
 
 always_comb begin
-    case (forward_a)
+    case (ex_forward_rs1_ctrl)
         2'b00: ex_forwarded_rs1 = ex_rs1;
-        2'b01: ex_forwarded_rs1 = mem_ex_alu_result;
+        2'b01: ex_forwarded_rs1 = mem_alu_result;
         2'b10: ex_forwarded_rs1 = wb_reg_data;
         default: ex_forwarded_rs1 = ex_rs1;
     endcase
 
-    case (forward_b)
-        2'b00: ex_forward_rs2 = ex_rs2;
-        2'b01: ex_forward_rs2 = mem_ex_alu_result;
-        2'b10: ex_forward_rs2 = wb_reg_data;
-        default: ex_forward_rs2 = ex_rs2;
+    case (ex_forward_rs2_ctrl)
+        2'b00: ex_forwarded_rs2 = ex_rs2;
+        2'b01: ex_forwarded_rs2 = mem_alu_result;
+        2'b10: ex_forwarded_rs2 = wb_reg_data;
+        default: ex_forwarded_rs2 = ex_rs2;
     endcase
 end
 
-assign ex_alu_a = ex_forwarded_rs1;
-assign ex_alu_b = ex_alu_b_src ? ex_immediate : ex_forward_rs2;
+
+always_comb begin
+    case (ex_alu_a_src)
+        2'b00: ex_alu_a = ex_forwarded_rs1;
+        2'b01: ex_alu_a = ex_pc;
+        2'b10: ex_alu_a = 32'b0;
+        default: ex_alu_a = ex_forwarded_rs1;
+    endcase
+end
+
+assign ex_alu_b = ex_alu_b_src ? ex_immediate : ex_forwarded_rs2;
 
 alu alu(
 .a_i(ex_alu_a),
@@ -335,6 +356,6 @@ always_comb begin
     endcase
 end
 
-assign flush_pipeline = (ex_pc_sel == 2'b10) || ((ex_pc_sel == 2'b01) && ex_branch_taken);
+assign branch_flush = (ex_pc_sel == 2'b10) || ((ex_pc_sel == 2'b01) && ex_branch_taken);
 
 endmodule

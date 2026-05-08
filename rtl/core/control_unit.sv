@@ -2,6 +2,7 @@ module control_unit(
     input logic [31:0] instruction_i,
 
     output logic [3:0] alu_op_sel_o,
+    output logic [1:0] alu_a_src_o, //00: rs1, 01: PC, 10: Zero
     output logic alu_b_src_o,
 
     output logic mem_write_o,
@@ -23,6 +24,7 @@ assign funct3 = instruction_i[14:12];
 assign funct7 = instruction_i[31:25];
 
 always_comb begin
+    alu_a_src_o = 2'b00;
     alu_b_src_o = 1'b0; // 0: b src is register, 1: is immediate
     alu_op_sel_o = 4'b0;
     result_src_o = 2'b0;
@@ -108,8 +110,16 @@ always_comb begin
 
         end 7'b0110111: begin // U type Load Upper Immediate
             reg_write_o  = 1'b1;
+            alu_b_src_o  = 2'b10;
             alu_b_src_o  = 1'b1;
             alu_op_sel_o = 4'b0000; // ADD
+
+            immediate_o  = {instruction_i[31:12], 12'b0};
+        end 7'b0010111: begin // U type AUIPC (Add Upper Immediate to PC)
+            reg_write_o  = 1'b1;
+            alu_a_src_o  = 2'b01;
+            alu_b_src_o  = 1'b1;
+            alu_op_sel_o = 4'b0000;
 
             immediate_o  = {instruction_i[31:12], 12'b0};
         end default: begin

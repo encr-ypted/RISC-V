@@ -18,6 +18,7 @@ typedef struct packed {
     logic [3:0]  alu_op_sel;
     logic [1:0]  result_src;
     logic [1:0]  pc_sel;
+    logic [1:0]  alu_a_src;
     logic        alu_b_src;
     logic        mem_write;
     logic        reg_write;
