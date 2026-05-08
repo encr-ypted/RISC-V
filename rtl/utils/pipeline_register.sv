@@ -1,4 +1,4 @@
-module pipeline_reg #(
+module pipeline_register #(
     parameter DATA_WIDTH = 32
 ) (
     input logic clk,
