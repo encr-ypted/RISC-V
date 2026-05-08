@@ -349,7 +349,6 @@ end
 
 assign target_address = (ex_is_jalr) ? {ex_alu_result[31:1], 1'b0} : (ex_pc + ex_immediate);
 
-
 //If branching, flush the pipeline and load target address into pc
 assign branch_flush = (ex_pc_sel == 2'b10) || ((ex_pc_sel == 2'b01) && ex_branch_taken);
 assign if_incremented_pc = if_pc + 32'd4;

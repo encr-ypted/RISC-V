@@ -17,8 +17,9 @@ logic [ADDR_W-1:0] word_addr;
 assign word_addr = addr_i[ADDR_W+1:2];
 //logic [1:0] byte_offset = addr_i[1:0];
 
+assign data_o = memory[word_addr];
+
 always_ff @(posedge clk) begin
-    data_o <= memory[word_addr];
 
     if (we_i) begin
         if (be_i[0]) memory[word_addr][7:0] <= data_i[7:0];
