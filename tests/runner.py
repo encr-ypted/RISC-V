@@ -97,14 +97,17 @@ def test_control_unit_runner(gui=False):
 def test_cpu_top_runner(gui=False):
   run_module_test(
     hdl_toplevel="cpu_top",
-    source_files=[RTL_DIR / "cpu_top.sv",
+    source_files=[RTL_DIR / "utils" / "cpu_pkg.sv",
+                  RTL_DIR / "cpu_top.sv",
                   RTL_DIR / "core" / "alu.sv",
                   RTL_DIR / "core" / "branch_unit.sv",
                   RTL_DIR / "core" / "control_unit.sv",
                   RTL_DIR / "core" / "pc.sv",
                   RTL_DIR / "core" / "register_file.sv",
+                  RTL_DIR / "core" / "forwarding_unit.sv",
                   RTL_DIR / "memory" / "data_memory.sv",
                   RTL_DIR / "memory" / "instruction_memory.sv",
+                  RTL_DIR / "utils" / "pipeline_register.sv",
     ],
     test_module="test_cpu_top",
     gui=gui
